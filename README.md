@@ -1,0 +1,1 @@
+# Digital-nomad-city-score-predictor
