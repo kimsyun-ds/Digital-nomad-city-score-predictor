@@ -1,0 +1,337 @@
+# 🌏 Digital Nomad City Score Predictor
+
+> A bilingual (English / Korean) machine learning tool that predicts how suitable a city is for digital nomads, based on 19 urban features such as internet speed, safety, cost of living, and healthcare quality.
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.2%2B-orange)](https://scikit-learn.org/)
+
+---
+
+## 📌 Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Why This Project?](#why-this-project)
+3. [Features](#features)
+4. [Project Structure](#project-structure)
+5. [Dataset](#dataset)
+6. [Installation](#installation)
+7. [How to Run](#how-to-run)
+8. [Usage Guide](#usage-guide)
+9. [Machine Learning Models](#machine-learning-models)
+10. [Feature Selection](#feature-selection)
+11. [Sample Output](#sample-output)
+12. [Output Files](#output-files)
+13. [Why README.md and requirements.txt Matter](#why-readmemd-and-requirementstxt-matter)
+14. [License](#license)
+
+---
+
+## Project Overview
+
+The **Digital Nomad City Score Predictor** is a command-line application built in Python that uses supervised machine learning to estimate a city's suitability score for digital nomads — people who work remotely while traveling the world.
+
+The tool trains three regression models (Linear Regression, Random Forest, and MLP) on a dataset of 730 cities sourced from Nomad List (via Kaggle), comparing their performance and automatically selecting the best model. Users can then interact with the program through a bilingual menu to predict scores for new cities, view ranked recommendations, and export visualization charts.
+
+---
+
+## Why This Project?
+
+Since COVID-19, remote work has expanded dramatically, and the number of digital nomads worldwide has surged. Governments and cities are now actively competing to attract remote workers by improving infrastructure, offering special visas, and reducing living costs.
+
+However, most existing information about "good cities for nomads" comes from:
+- Subjective community reviews and blog posts
+- General tourism or expat living guides
+- Non-data-driven rankings
+
+This project addresses that gap by building a **data-driven, machine learning-based prediction system** that objectively scores cities using quantitative urban features. The result is a reproducible, open source tool that anyone can run, extend, or contribute to.
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| 🌐 Bilingual CLI | Full English and Korean support. Language is selected at startup and applied to all prompts, menus, and chart labels |
+| 🤖 3 ML Models | Trains and compares Linear Regression, Random Forest, and MLP Regressor |
+| 🏆 Auto Model Selection | Automatically selects the best model by R² score on the test set |
+| 🏙️ City Score Prediction | User inputs values for 19 features; empty inputs are auto-filled with dataset averages |
+| 📊 Top 10 Cities | Displays the top 10 cities from the dataset ranked by nomad score |
+| 📈 Feature Importance Chart | Exports a horizontal bar chart showing which features influence the score most |
+| 📉 Model Comparison Chart | Exports a side-by-side R² and MSE comparison chart for all 3 models |
+| 💾 PNG Export | All charts are automatically saved as PNG files to the project directory |
+
+---
+
+## Project Structure
+
+```
+nomad_predictor/
+│
+├── predictor.py            # Main Python script — bilingual CLI + ML pipeline
+├── cities_predict.csv      # Dataset: 730 cities × 32 features (Kaggle / Nomad List)
+│
+├── README.md               # Project documentation (this file)
+├── requirements.txt        # Python dependency list for easy environment setup
+├── LICENSE                 # MIT License
+├── short_report.pdf        # Concise academic report summarizing the project
+│
+├── feature_importance.png  # Auto-generated chart: Random Forest feature importances
+└── model_comparison.png    # Auto-generated chart: R² and MSE comparison across models
+```
+
+---
+
+## Dataset
+
+| Property | Detail |
+|----------|--------|
+| Source | Kaggle — *World Regions and Nomadscore* (based on Nomads.com / Nomad List) |
+| Total cities | 730 |
+| Total columns | 32 (including region, country, place name, and nomad score) |
+| Target variable | `nomad_score` — a community-rated suitability score ranging from 0 to 5 |
+| Selected features | 19 (filtered by Random Forest importance ≥ 0.01) |
+
+### Feature Categories
+
+| Category | Features |
+|----------|----------|
+| 💰 Economic | `1br_studio_rent_in_center`, `airbnb_(monthly)`, `coca-cola`, `coffee`, `cost_of_living_for_local`, `cost_of_living_for_expat` |
+| 🏥 Infrastructure | `internet`, `healthcare`, `cashless_society` |
+| 🤝 Social | `safety`, `racial_tolerance`, `friendly_to_foreigners`, `peace`, `female_friendly` |
+| 😊 Lifestyle | `startup_score`, `fun`, `nightlife`, `happiness`, `air_quality_(year-round)` |
+
+---
+
+## Installation
+
+### Requirements
+
+- Python 3.8 or higher
+- pip (Python package manager)
+
+### Step 1 — Clone or download the project
+
+```bash
+git clone https://github.com/<your-username>/nomad-predictor.git
+cd nomad-predictor
+```
+
+Or download and unzip the project folder manually.
+
+### Step 2 — Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+This installs all required libraries in one command. See [requirements.txt](requirements.txt) for the full list.
+
+### Step 3 — Verify the dataset is present
+
+Make sure `cities_predict.csv` is in the same folder as `predictor.py`. The script will not run without it.
+
+---
+
+## How to Run
+
+```bash
+python predictor.py
+```
+
+On first launch, the program will:
+1. Ask you to select a language (`en` for English, `ko` for Korean)
+2. Load the dataset from `cities_predict.csv`
+3. Train all 3 models (takes approximately 10–30 seconds)
+4. Display model performance results
+5. Show the interactive menu
+
+---
+
+## Usage Guide
+
+### Language Selection
+
+```
+=== Digital Nomad City Score Predictor ===
+=== 디지털 노마드 도시 점수 예측기 ===
+Select language / 언어를 선택하세요  [en / ko]: en
+```
+
+Type `en` for English or `ko` for Korean and press Enter. If you press Enter without typing, the program defaults to English.
+
+### Main Menu
+
+```
+[1] Predict score for a new city
+[2] Show top 10 recommended cities
+[3] Show feature importance chart
+[4] Show model comparison chart
+[q] Quit
+Choice:
+```
+
+### Option 1 — Predict a New City Score
+
+The program prompts you to enter a value for each of the 19 features. For any feature you leave blank (press Enter), the dataset average is used automatically.
+
+```
+  Enter Startup Score (avg 3.45):
+  Enter Internet Speed (Mbps) (avg 47.82): 80
+  Enter Safety (avg 3.71): 4.5
+  ...
+
+🏙  Predicted Nomad Score: 4.123
+```
+
+### Option 2 — Top 10 Cities
+
+Displays the 10 highest-scoring cities in the dataset:
+
+```
+── Top 10 Cities for Digital Nomads ──
+  City                           Country              Score
+  ────────────────────────────────────────────────────────
+  Chiang Mai Thailand            Thailand              4.970
+  Budapest Hungary               Hungary               4.930
+  Bangkok Thailand               Thailand              4.900
+  ...
+```
+
+### Option 3 — Feature Importance Chart
+
+Generates and saves `feature_importance.png` — a horizontal bar chart showing which of the 19 features have the most influence on the predicted nomad score according to the Random Forest model.
+
+### Option 4 — Model Comparison Chart
+
+Generates and saves `model_comparison.png` — a side-by-side bar chart comparing R² Score and MSE for all three models.
+
+---
+
+## Machine Learning Models
+
+### Models Trained
+
+| Model | Description |
+|-------|-------------|
+| Linear Regression | Baseline model; fits a linear relationship between features and nomad score |
+| Random Forest | Ensemble of 200 decision trees; handles non-linear relationships and feature interactions |
+| MLP Regressor | Neural network with 1 hidden layer of 100 neurons, ReLU activation, 1000 max iterations |
+
+### Evaluation Metrics
+
+| Metric | Description |
+|--------|-------------|
+| R² Score | Proportion of variance in nomad_score explained by the model (higher = better, max = 1.0) |
+| MSE | Mean Squared Error — average squared difference between predicted and actual scores (lower = better) |
+
+### Results
+
+| Model | R² Score | MSE |
+|-------|----------|-----|
+| Linear Regression | 0.3853 | 0.1344 |
+| **Random Forest** ✔ | **0.4274** | **0.1252** |
+| MLP Regressor | 0.2295 | 0.1685 |
+
+**Random Forest was selected as the best model** with the highest R² and lowest MSE.
+
+> **Note on R² = 0.43:** The nomad_score target variable incorporates subjective community ratings, lifestyle preferences, and cultural factors that cannot be fully captured by objective numeric features alone. An R² of 0.43 is considered meaningful for this type of socially-influenced target variable.
+
+---
+
+## Feature Selection
+
+Initially, all 28 numeric features from the dataset were considered. A Random Forest model was first trained on all features, and feature importance scores were extracted. Features with importance below **0.01** were removed, reducing the final feature set to **19 variables**.
+
+This process:
+- Reduced model complexity and training time
+- Improved R² from 0.4233 (tuned RF, 28 features) to 0.4434 (RF, 19 features)
+- Improved interpretability by removing low-signal noise variables
+
+---
+
+## Sample Output
+
+### Terminal Output (English mode)
+
+```
+=== Digital Nomad City Score Predictor ===
+=== 디지털 노마드 도시 점수 예측기 ===
+Select language / 언어를 선택하세요  [en / ko]: en
+
+Loading dataset...
+Training models (this may take a moment)...
+
+── Model Performance ──
+  Linear Regression       R²=0.3853  MSE=0.1344
+  Random Forest           R²=0.4274  MSE=0.1252
+  MLP Regressor           R²=0.2295  MSE=0.1685
+
+✔  Best model: Random Forest  (R² = 0.4274)
+
+[1] Predict score for a new city
+[2] Show top 10 recommended cities
+[3] Show feature importance chart
+[4] Show model comparison chart
+[q] Quit
+Choice: 1
+
+  Enter Startup Score (avg 3.45):
+  Enter Female Friendly (avg 3.82):
+  Enter Internet Speed (Mbps) (avg 47.82): 80
+  Enter Safety (avg 3.71): 4.5
+  ...
+
+🏙  Predicted Nomad Score: 4.123
+```
+
+---
+
+## Output Files
+
+After running the program, the following files may be created in the project directory:
+
+| File | Generated by | Description |
+|------|-------------|-------------|
+| `feature_importance.png` | Menu option [3] | Horizontal bar chart of Random Forest feature importances |
+| `model_comparison.png` | Menu option [4] | Side-by-side R² and MSE comparison chart |
+
+---
+
+## Why README.md and requirements.txt Matter
+
+### README.md
+
+A README is the **front door of any open source project**. Without it, even an excellent codebase becomes inaccessible to others. A good README:
+
+- Explains what the project does and why it exists
+- Provides clear installation and usage instructions so anyone can run it without prior knowledge of the codebase
+- Documents the dataset, models, and results so the project is academically and technically credible
+- Lowers the barrier to contribution — open source thrives when others can understand and improve a project
+
+
+### requirements.txt
+
+Open source software must be **reproducible across different machines and environments**. The `requirements.txt` file:
+
+- Pins the exact library names (and minimum versions) needed to run the project
+- Allows any user to recreate the exact environment with a single command: `pip install -r requirements.txt`
+- Prevents "it works on my machine" problems caused by version mismatches
+- Is especially critical in data science and ML projects, where scikit-learn API changes between versions can silently alter model behavior or cause import errors
+
+Without `requirements.txt`, collaborators must guess which libraries are needed and which versions are compatible — a significant barrier to open source adoption.
+
+---
+
+## License
+
+This project is licensed under the **MIT License**.
+
+You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided the original copyright notice and license text are included.
+
+See [LICENSE](LICENSE) for the full license text.
+
+---
+
+*Sejong University — Introduction to Open Source Software — 2026*
+```
