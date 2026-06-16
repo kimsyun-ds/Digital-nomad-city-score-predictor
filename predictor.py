@@ -8,37 +8,45 @@ Author  : OSS Final Project
 License : MIT
 """
 
-import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")  # non-interactive backend (safe for all environments)
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import warnings
-import os
-import sys
+# ── External libraries ──────────────────────────────────────────────────────
+import pandas as pd          # Data loading and manipulation (CSV → DataFrame)
+import numpy as np           # Numerical operations (array sorting, linspace)
+import matplotlib            # Base matplotlib package; backend must be set before pyplot
+matplotlib.use("Agg")        # Use non-interactive backend — safe for all OS environments
+                             # (prevents GUI window errors when saving charts)
+import matplotlib.pyplot as plt          # Chart drawing: bar charts, subplots, labels
+import matplotlib.font_manager as fm     # Font management for chart text rendering
+import warnings              # Suppress non-critical warnings from sklearn/matplotlib
+import os                    # File path operations: os.path.join, os.path.dirname
+import sys                   # System-level access (reserved for future use / error handling)
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore")   # Hide deprecation/convergence warnings during model training
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neural_network import MLPRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+# ── scikit-learn: machine learning utilities ────────────────────────────────
+from sklearn.model_selection import train_test_split   # Split dataset into train/test sets
+from sklearn.preprocessing import StandardScaler       # Normalize features (mean=0, std=1)
+from sklearn.linear_model import LinearRegression      # Baseline regression model
+from sklearn.ensemble import RandomForestRegressor     # Best-performing ensemble model
+from sklearn.neural_network import MLPRegressor        # Multi-layer perceptron regression model
+from sklearn.metrics import mean_squared_error, r2_score  # Model evaluation metrics
+
 
 # ─────────────────────────────────────────────
 # Language / 언어 설정
 # ─────────────────────────────────────────────
 
-LANG = "en"  # default; will be set by user at startup
+LANG = "en"  # Global language setting; changed to "ko" if user selects Korean at startup
 
+# Bilingual message dictionary
+# Structure: MESSAGES[message_id][language_code] → string
+# Supports "en" (English) and "ko" (Korean)
 MESSAGES = {
     "welcome": {
         "en": "\n=== Digital Nomad City Score Predictor ===",
         "ko": "\n=== 디지털 노마드 도시 점수 예측기 ===",
     },
     "select_lang": {
+        # Shown in both languages since user hasn't selected one yet
         "en": "Select language / 언어를 선택하세요  [en / ko]: ",
         "ko": "Select language / 언어를 선택하세요  [en / ko]: ",
     },
@@ -55,6 +63,7 @@ MESSAGES = {
         "ko": "\n── 모델 성능 비교 ──",
     },
     "best_model": {
+        # {name} and {r2} are format placeholders filled in by t()
         "en": "\n✔  Best model: {name}  (R² = {r2:.4f})",
         "ko": "\n✔  최적 모델: {name}  (R² = {r2:.4f})",
     },
@@ -77,10 +86,12 @@ MESSAGES = {
         ),
     },
     "enter_feature": {
+        # {feat} = feature name, {avg} = dataset average for that feature
         "en": "  Enter {feat} (avg {avg:.2f}): ",
         "ko": "  {feat} 입력 (평균 {avg:.2f}): ",
     },
     "predicted": {
+        # {score} = predicted nomad score (float)
         "en": "\n🏙  Predicted Nomad Score: {score:.3f}",
         "ko": "\n🏙  예측된 노마드 점수: {score:.3f}",
     },
@@ -89,6 +100,7 @@ MESSAGES = {
         "ko": "\n── 디지털 노마드 추천 도시 TOP 10 ──",
     },
     "chart_saved": {
+        # {path} = file path where the chart PNG was saved
         "en": "Chart saved → {path}",
         "ko": "차트 저장됨 → {path}",
     },
@@ -104,7 +116,11 @@ MESSAGES = {
 
 
 def t(key, **kwargs):
-    """Return the message for the current language."""
+    """
+    Translation helper — returns the message string for the current LANG.
+    Supports format-string substitution via keyword arguments.
+    Example: t("best_model", name="Random Forest", r2=0.4274)
+    """
     msg = MESSAGES[key][LANG]
     return msg.format(**kwargs) if kwargs else msg
 
@@ -113,8 +129,12 @@ def t(key, **kwargs):
 # Data & Feature config
 # ─────────────────────────────────────────────
 
+# Build absolute path to the CSV so the script works from any working directory
 DATA_FILE = os.path.join(os.path.dirname(__file__), "cities_predict.csv")
 
+# 19 features selected from the original 32 columns
+# Selection criterion: Random Forest feature importance >= 0.01
+# Covers 4 categories: economic, infrastructure, social, lifestyle
 SELECTED_FEATURES = [
     "startup_score", "female_friendly", "air_quality_(year-round)",
     "coca-cola", "internet", "coffee", "nightlife",
@@ -124,7 +144,8 @@ SELECTED_FEATURES = [
     "cashless_society", "peace", "healthcare", "happiness",
 ]
 
-# Human-readable labels (bilingual)
+# Bilingual display labels for each feature
+# Used in CLI prompts and chart axis labels
 FEATURE_LABELS = {
     "startup_score":               {"en": "Startup Score",              "ko": "스타트업 점수"},
     "female_friendly":             {"en": "Female Friendly",            "ko": "여성 친화도"},
@@ -149,6 +170,7 @@ FEATURE_LABELS = {
 
 
 def label(feat):
+    """Return the bilingual display name for a given feature key."""
     return FEATURE_LABELS[feat][LANG]
 
 
@@ -157,10 +179,18 @@ def label(feat):
 # ─────────────────────────────────────────────
 
 def load_data():
+    """
+    Load the dataset from CSV and extract features, target, and metadata.
+    Returns:
+        X    : DataFrame of 19 selected input features
+        y    : Series of nomad_score (target variable, range 0–5)
+        meta : DataFrame with city name, country, and region columns
+        df   : Full original DataFrame (used for Top 10 display)
+    """
     df = pd.read_csv(DATA_FILE)
-    X = df[SELECTED_FEATURES]
-    y = df["nomad_score"]
-    meta = df[["place_slug", "country", "region"]].copy()
+    X = df[SELECTED_FEATURES]                                   # Input features only
+    y = df["nomad_score"]                                       # Target variable
+    meta = df[["place_slug", "country", "region"]].copy()      # City metadata
     return X, y, meta, df
 
 
@@ -169,12 +199,24 @@ def load_data():
 # ─────────────────────────────────────────────
 
 def train_models(X, y):
+    """
+    Standardize features, split data, and train 3 regression models.
+    Evaluates each model on the test set using R² and MSE.
+    Returns:
+        results : dict — {model_name: {model, mse, r2, y_test, y_pred}}
+        scaler  : fitted StandardScaler (reused during prediction)
+        X_train, X_test, y_train, y_test : split arrays
+    """
+    # Normalize features: mean=0, std=1 (required for fair model comparison)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+
+    # 80% training, 20% testing; fixed random_state for reproducibility
     X_train, X_test, y_train, y_test = train_test_split(
         X_scaled, y, test_size=0.2, random_state=42
     )
 
+    # Define the three models to compare
     models = {
         "Linear Regression": LinearRegression(),
         "Random Forest":     RandomForestRegressor(n_estimators=200, random_state=42),
@@ -186,12 +228,12 @@ def train_models(X, y):
 
     results = {}
     for name, model in models.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+        model.fit(X_train, y_train)          # Train on training set
+        y_pred = model.predict(X_test)       # Predict on unseen test set
         results[name] = {
             "model":  model,
-            "mse":    mean_squared_error(y_test, y_pred),
-            "r2":     r2_score(y_test, y_pred),
+            "mse":    mean_squared_error(y_test, y_pred),   # Lower is better
+            "r2":     r2_score(y_test, y_pred),             # Higher is better (max 1.0)
             "y_test": y_test,
             "y_pred": y_pred,
         }
@@ -204,15 +246,21 @@ def train_models(X, y):
 # ─────────────────────────────────────────────
 
 def chart_feature_importance(rf_model, output_dir="."):
-    importances = rf_model.feature_importances_
-    feat_labels = [label(f) for f in SELECTED_FEATURES]
-    idx = np.argsort(importances)
+    """
+    Generate a horizontal bar chart of Random Forest feature importances.
+    Bars are sorted ascending so the most important feature appears at the top.
+    Chart title and axis label switch language based on LANG.
+    Saves the chart as 'feature_importance.png' in output_dir.
+    """
+    importances = rf_model.feature_importances_         # Array of importance scores (sum=1)
+    feat_labels = [label(f) for f in SELECTED_FEATURES] # Bilingual feature names
+    idx = np.argsort(importances)                        # Sort indices low → high
 
     fig, ax = plt.subplots(figsize=(9, 7))
     bars = ax.barh(
-        [feat_labels[i] for i in idx],
-        importances[idx],
-        color=plt.cm.viridis(np.linspace(0.3, 0.9, len(idx))),
+        [feat_labels[i] for i in idx],                          # Feature names (sorted)
+        importances[idx],                                        # Importance values (sorted)
+        color=plt.cm.viridis(np.linspace(0.3, 0.9, len(idx))), # Gradient color scheme
         edgecolor="white",
     )
     ax.set_xlabel("Importance" if LANG == "en" else "중요도", fontsize=11)
@@ -221,26 +269,32 @@ def chart_feature_importance(rf_model, output_dir="."):
         else "변수 중요도 (랜덤 포레스트)",
         fontsize=13, fontweight="bold"
     )
-    ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
+    ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)  # Show values on each bar
     plt.tight_layout()
 
     path = os.path.join(output_dir, "feature_importance.png")
-    plt.savefig(path, dpi=150)
-    plt.close()
+    plt.savefig(path, dpi=150)   # Save at 150 DPI for clear print/presentation quality
+    plt.close()                  # Release memory — important when Agg backend is used
     return path
 
 
 def chart_model_comparison(results, output_dir="."):
+    """
+    Generate a side-by-side bar chart comparing R² and MSE across all 3 models.
+    Left subplot: R² Score (higher = better)
+    Right subplot: MSE — Mean Squared Error (lower = better)
+    Saves the chart as 'model_comparison.png' in output_dir.
+    """
     names = list(results.keys())
-    r2_vals = [results[n]["r2"] for n in names]
+    r2_vals  = [results[n]["r2"]  for n in names]
     mse_vals = [results[n]["mse"] for n in names]
 
-    x = np.arange(len(names))
-    width = 0.35
+    x = np.arange(len(names))   # x positions for bar groups
+    width = 0.35                 # Bar width
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5))
 
-    # R²
+    # ── Left: R² Score ──
     bars1 = ax1.bar(x, r2_vals, width, color=["#4C72B0", "#DD8452", "#55A868"],
                     edgecolor="white")
     ax1.set_xticks(x)
@@ -248,10 +302,10 @@ def chart_model_comparison(results, output_dir="."):
     ax1.set_ylabel("R² Score")
     ax1.set_title("R² Score by Model" if LANG == "en" else "모델별 R² 점수",
                   fontweight="bold")
-    ax1.set_ylim(0, 1)
-    ax1.bar_label(bars1, fmt="%.4f", padding=3)
+    ax1.set_ylim(0, 1)                                      # Fix y-axis 0–1 for R²
+    ax1.bar_label(bars1, fmt="%.4f", padding=3)             # Show exact values on bars
 
-    # MSE
+    # ── Right: MSE ──
     bars2 = ax2.bar(x, mse_vals, width, color=["#4C72B0", "#DD8452", "#55A868"],
                     edgecolor="white")
     ax2.set_xticks(x)
@@ -268,7 +322,7 @@ def chart_model_comparison(results, output_dir="."):
     plt.tight_layout()
 
     path = os.path.join(output_dir, "model_comparison.png")
-    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.savefig(path, dpi=150, bbox_inches="tight")  # bbox_inches="tight" prevents label clipping
     plt.close()
     return path
 
@@ -278,20 +332,31 @@ def chart_model_comparison(results, output_dir="."):
 # ─────────────────────────────────────────────
 
 def predict_new_city(model, scaler, mean_values):
+    """
+    Interactively prompt the user to enter values for each of the 19 features.
+    Empty input is automatically filled with the dataset average for that feature.
+    The input is standardized using the same scaler fitted during training,
+    then passed to the best model to produce a predicted nomad score.
+    """
     print()
     user_vals = {}
     for feat in SELECTED_FEATURES:
         while True:
             try:
+                # Show feature name (bilingual) and dataset average as a hint
                 raw = input(t("enter_feature", feat=label(feat), avg=mean_values[feat]))
+                # If user presses Enter without typing, use dataset average
                 user_vals[feat] = float(raw) if raw.strip() else mean_values[feat]
                 break
             except ValueError:
+                # Re-prompt if input cannot be converted to float
                 print(t("invalid"))
 
+    # Build a single-row DataFrame in the correct feature order
     row = pd.DataFrame([user_vals])[SELECTED_FEATURES]
+    # Apply the same StandardScaler used during training (not fit again)
     row_scaled = scaler.transform(row)
-    score = model.predict(row_scaled)[0]
+    score = model.predict(row_scaled)[0]   # Extract scalar from 1-element array
     print(t("predicted", score=score))
     return score
 
@@ -301,12 +366,18 @@ def predict_new_city(model, scaler, mean_values):
 # ─────────────────────────────────────────────
 
 def show_top10(df):
+    """
+    Display the top 10 cities ranked by actual nomad_score from the dataset.
+    Column headers switch language based on LANG.
+    """
     top = df.nlargest(10, "nomad_score")[["place_slug", "country", "nomad_score"]]
     print(t("top10_header"))
+    # Print column header row (language-aware)
     print(f"  {'City':<30} {'Country':<20} {'Score':>6}" if LANG == "en"
           else f"  {'도시':<30} {'국가':<20} {'점수':>6}")
     print("  " + "─" * 56)
     for _, row in top.iterrows():
+        # Convert slug format (e.g. "chiang-mai-thailand") to title case
         city = row["place_slug"].replace("-", " ").title()
         print(f"  {city:<30} {row['country']:<20} {row['nomad_score']:>6.3f}")
 
@@ -316,56 +387,72 @@ def show_top10(df):
 # ─────────────────────────────────────────────
 
 def main():
-    global LANG
+    """
+    Entry point for the bilingual command-line interface.
+    Flow:
+      1. Ask user to select language (en / ko)
+      2. Load dataset and compute feature means
+      3. Train all 3 models and select the best by R²
+      4. Display interactive menu and loop until user quits
+    """
+    global LANG   # Allow inner functions to reference the updated language setting
 
+    # Display welcome message in both languages before language is selected
     print(MESSAGES["welcome"]["en"] + "\n" + MESSAGES["welcome"]["ko"])
     lang_input = input(MESSAGES["select_lang"]["en"]).strip().lower()
     if lang_input in ("ko", "en"):
-        LANG = lang_input
+        LANG = lang_input   # Set global language; defaults to "en" if invalid input
 
     print(t("loading"))
     X, y, meta, df = load_data()
-    mean_values = X.mean()
+    mean_values = X.mean()   # Precompute feature averages for prediction auto-fill
 
     print(t("training"))
     results, scaler, *_ = train_models(X, y)
 
-    # Pick best model by R²
-    best_name = max(results, key=lambda n: results[n]["r2"])
+    # Automatically select the model with the highest R² on the test set
+    best_name  = max(results, key=lambda n: results[n]["r2"])
     best_model = results[best_name]["model"]
 
+    # Print performance summary for all 3 models
     print(t("model_results"))
     for name, res in results.items():
         print(f"  {name:<22}  R²={res['r2']:.4f}  MSE={res['mse']:.4f}")
     print(t("best_model", name=best_name, r2=results[best_name]["r2"]))
 
+    # Charts and output files are saved to the same directory as predictor.py
     output_dir = os.path.dirname(os.path.abspath(__file__))
 
+    # ── Interactive menu loop ──
     while True:
         choice = input(t("menu")).strip().lower()
 
         if choice == "1":
+            # Prompt user for feature values → predict nomad score
             predict_new_city(best_model, scaler, mean_values)
 
         elif choice == "2":
+            # Show top 10 cities ranked by actual nomad_score
             show_top10(df)
 
         elif choice == "3":
+            # Generate and save feature importance bar chart (PNG)
             rf = results["Random Forest"]["model"]
             path = chart_feature_importance(rf, output_dir)
             print(t("chart_saved", path=path))
 
         elif choice == "4":
+            # Generate and save R²/MSE model comparison chart (PNG)
             path = chart_model_comparison(results, output_dir)
             print(t("chart_saved", path=path))
 
         elif choice == "q":
             print(t("bye"))
-            break
+            break   # Exit the menu loop and end the program
 
         else:
-            print(t("invalid"))
+            print(t("invalid"))   # Re-display menu on unrecognized input
 
 
 if __name__ == "__main__":
-    main()
+    main()   # Only run when executed directly, not when imported as a module
